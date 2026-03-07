@@ -15,6 +15,7 @@ set(sources
     "m3_module.c"
     "m3_parse.c"
     m3_memory.c
+        m3_sparse_memory.c
 )
 
 add_library(m3 STATIC ${sources}

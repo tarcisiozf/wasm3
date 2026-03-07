@@ -50,11 +50,12 @@ typedef float           f32;
 #define PRIf32          "f"
 #define PRIf64          "lf"
 
+typedef const unsigned char     byte;
 typedef const void *            m3ret_t;
 typedef const void *            voidptr_t;
 typedef const char *            cstr_t;
 typedef const char * const      ccstr_t;
-typedef const u8 *              bytes_t;
+typedef const byte *            bytes_t;
 typedef const u8 * const        cbytes_t;
 
 typedef u16                     m3opcode_t;
