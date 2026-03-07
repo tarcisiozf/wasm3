@@ -11,33 +11,9 @@
 #include "wasm3.h"
 #include "m3_code.h"
 #include "m3_compile.h"
+#include "m3_memory.h"
 
 d_m3BeginExternC
-
-
-//---------------------------------------------------------------------------------------------------------------------------------
-
-typedef struct M3MemoryInfo
-{
-    u32     initPages;
-    u32     maxPages;
-    u32     pageSize;
-}
-M3MemoryInfo;
-
-
-typedef struct M3Memory
-{
-    M3MemoryHeader *        mallocated;
-
-    u32                     numPages;
-    u32                     maxPages;
-    u32                     pageSize;
-}
-M3Memory;
-
-typedef M3Memory *          IM3Memory;
-
 
 //---------------------------------------------------------------------------------------------------------------------------------
 

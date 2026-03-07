@@ -14,9 +14,12 @@ set(sources
     "m3_info.c"
     "m3_module.c"
     "m3_parse.c"
+    m3_memory.c
 )
 
-add_library(m3 STATIC ${sources})
+add_library(m3 STATIC ${sources}
+        m3_exec.h
+        m3_memory.h)
 
 target_include_directories(m3 PUBLIC .)
 
