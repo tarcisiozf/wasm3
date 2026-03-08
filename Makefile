@@ -1,11 +1,21 @@
 build-lib:
-	cd build && cmake .. && make -j$(nproc)
+	cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+
+build-lib-debug:
+	cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug && make -j$(nproc)
 
 build-app: build-lib
+	gcc -o run_wasm run_wasm.c -I source -L build/source -lm3 -lm \
+	    -Dd_m3HasTracer -Dd_m3HasWASI -O3
+
+build-app-debug: build-lib-debug
 	gcc -o run_wasm run_wasm.c -I source -L build/source -lm3 -lm \
 	    -Dd_m3HasTracer -Dd_m3HasWASI -DDEBUG=1 -g -O0
 
 run: build-app
+	./run_wasm test/lang/fib32.wasm fib 10
+
+run-debug: build-app-debug
 	./run_wasm test/lang/fib32.wasm fib 10
 
 # --- sparse memory unit tests -----------------------------------------------
