@@ -15,7 +15,9 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "m3_api_libc.h"
 #include "wasm3.h"
+#include "m3_env.h"
 
 #define STACK_SIZE_BYTES  (64 * 1024)   /* 64 KB interpreter stack */
 
@@ -69,6 +71,8 @@ int main(int argc, char *argv[]) {
 
     result = m3_LoadModule(runtime, module);
     if (result) fatal("m3_LoadModule", result);
+    result = m3_LinkSpecTest(runtime->modules);
+    if (result) fatal("m3_LinkSpecTest", result);
 
     /* ── 4. Optionally run the start section (like __wasm_call_ctors) ───── */
     result = m3_RunStart(module);

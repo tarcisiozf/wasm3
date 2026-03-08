@@ -2,7 +2,8 @@ build-lib:
 	cd build && cmake .. && make -j$(nproc)
 
 build-app: build-lib
-	gcc -o run_wasm run_wasm.c -I source -L build/source -lm3 -lm
+	gcc -o run_wasm run_wasm.c -I source -L build/source -lm3 -lm \
+	    -Dd_m3HasTracer -Dd_m3HasWASI -DDEBUG=1 -g -O0
 
 run: build-app
 	./run_wasm test/lang/fib32.wasm fib 10
