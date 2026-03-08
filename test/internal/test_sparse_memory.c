@@ -61,6 +61,8 @@ static int g_before_failed;
 static void mem_setup(M3Memory *mem, u32 wasm_pages)
 {
     memInit(mem);
+    mem->info.maxPages = wasm_pages;
+    mem->info.numPages = wasm_pages;
     mem->header.length = (size_t)wasm_pages * WASM_PAGE;
 }
 

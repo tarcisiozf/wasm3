@@ -342,6 +342,7 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
         u32 pageSize = i_module->memoryInfo.pageSize;
         io_runtime->memory.info.maxPages = maxPages ? maxPages : 65536;
         io_runtime->memory.info.pageSize = pageSize ? pageSize : d_m3DefaultMemPageSize;
+        io_runtime->memory.info.initPages = i_module->memoryInfo.initPages;
     }
 
     return ResizeMemory (io_runtime, i_module->memoryInfo.initPages);

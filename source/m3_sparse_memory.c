@@ -149,7 +149,7 @@ void memMergePages(M3Memory* mem) {
 
 static bool memCanFit(const M3Memory* mem, const u32 offset, const u32 size) {
     return mem->info.maxPages == 0
-        || offset + size < mem->info.maxPages * mem->info.pageSize;
+        || ((u64)offset + size) <= (u64)mem->info.maxPages * mem->info.pageSize;
 }
 
 void memInit(M3Memory* mem) {
@@ -251,7 +251,8 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
         return m3Err_wasmMemoryOverflow;
     }
 
-    memory->header.length = i_numPages * MEM_PAGE_SIZE;
+    memory->info.numPages = i_numPages;
+    memory->header.length = (u64)i_numPages * MEM_PAGE_SIZE;
     memory->header.runtime = io_runtime;
     memory->header.maxStack = (m3slot_t *) io_runtime->stack + io_runtime->numStackSlots;
 
