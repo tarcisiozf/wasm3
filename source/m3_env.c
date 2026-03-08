@@ -1143,7 +1143,7 @@ void  m3_GetMemory  (IM3Runtime i_runtime, const uint32_t i_memoryIndex, void* d
 
     if (i_runtime)
     {
-        memLoad(& i_runtime->memory, 0, i_runtime->memory.header.length, dest);
+        memLoad(&i_runtime->memory, dest, 0, i_runtime->memory.header.length);
     }
 }
 

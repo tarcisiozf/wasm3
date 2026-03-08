@@ -32,7 +32,7 @@ void memMergePages(M3Memory* mem);
 
 M3Result memStore(M3Memory* mem, u32 offset, const void* data, u32 size);
 
-M3Result memLoad(const M3Memory* mem, u32 offset, u32 size, void* dest);
+M3Result memLoad(const M3Memory* mem, void* dest, u32 offset, u32 size);
 
 void memFree(M3Memory* mem);
 

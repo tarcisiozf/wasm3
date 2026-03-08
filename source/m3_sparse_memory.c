@@ -205,7 +205,7 @@ M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 s
     return m3Err_none;
 }
 
-M3Result memLoad(const M3Memory* mem, const u32 offset, const u32 size, void* dest) {
+M3Result memLoad(const M3Memory* mem, void* dest, const u32 offset, const u32 size) {
     if (size == 0) return m3Err_none;
     if (!memCanFit(mem, offset, size)) {
         return m3Err_wasmMemoryOverflow;
