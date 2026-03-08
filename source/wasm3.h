@@ -328,6 +328,12 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     // The runtime owns the backtrace, do not free the backtrace you obtain. Returns NULL if there's no backtrace.
     IM3BacktraceInfo    m3_GetBacktrace             (IM3Runtime i_runtime);
 
+    typedef struct TaggedUserData
+    {
+        unsigned char tag;
+    }
+    TaggedUserData;
+
 //-------------------------------------------------------------------------------------------------------------------------------
 //  raw function definition helpers
 //-------------------------------------------------------------------------------------------------------------------------------

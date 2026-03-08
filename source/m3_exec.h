@@ -44,6 +44,7 @@ d_m3BeginExternC
 # define slot(TYPE)                 * (TYPE *) (_sp + immediate (i32))
 # define slot_ptr(TYPE)             (TYPE *) (_sp + immediate (i32))
 
+# define TAG_USE_SPARSE_MEMORY (unsigned char)0x42
 
 # if d_m3EnableOpProfiling
                                     d_m3RetSig  profileOp   (d_m3OpSig, cstr_t i_operationName);
@@ -663,12 +664,19 @@ d_m3Op  (CallRawFunction)
 # endif
 #endif
 
+    void* memArg = NULL;
+    if (ctx.userdata != NULL && ((TaggedUserData*)ctx.userdata)->tag == TAG_USE_SPARSE_MEMORY) {
+        memArg = memory;
+    } else {
+        memArg = m3MemData(_mem);
+    }
+
     // m3_Call uses runtime->stack to set-up initial exported function stack.
     // Reconfigure the stack to enable recursive invocations of m3_Call.
-    // I.e. exported/table function can be called from an impoted function.
+    // I.e. exported/table function can be called from an imported function.
     void* stack_backup = runtime->stack;
     runtime->stack = sp;
-    m3ret_t possible_trap = call (runtime, &ctx, sp, m3MemData(_mem));
+    m3ret_t possible_trap = call (runtime, &ctx, sp, memArg);
     runtime->stack = stack_backup;
 
 #if d_m3EnableStrace
