@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.11)
 
+# Allow dependencies to use older CMake minimum versions
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 # Detect WasiEnv
 if(DEFINED ENV{WASI_CC} OR DEFINED WASI_SDK_PREFIX)
   set(WASIENV           1)
@@ -196,6 +199,12 @@ elseif(BUILD_WASI MATCHES "metawasi")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Dd_m3HasMetaWASI")
 elseif(BUILD_WASI MATCHES "uvwasi")
   include(FetchContent)
+
+  # Set policy to allow older CMake versions in dependencies
+  if(POLICY CMP0169)
+    cmake_policy(SET CMP0169 OLD)
+  endif()
+
   FetchContent_Declare(
     uvwasi
     GIT_REPOSITORY  https://github.com/nodejs/uvwasi.git
