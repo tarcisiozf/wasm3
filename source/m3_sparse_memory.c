@@ -9,6 +9,10 @@
 #define SPARSE_PAGE_SIZE 256
 #endif
 
+#ifndef SPARSE_MERGE_THRESHOLD
+#define SPARSE_MERGE_THRESHOLD 0.1f
+#endif
+
 void memEnsurePages(M3Memory* mem, const u32 offset, const u32 size) {
     const u32 requiredSize = (offset + size + mem->pageSize - 1) / mem->pageSize;
     if (requiredSize <= mem->numSparsePages) {
@@ -70,11 +74,86 @@ static void memLoadFromPage(const M3Memory* mem, const u32 pageIdx, const u32 pa
     memcpy(data, (void*)(mem->pages[pageIdx] + pageOff), size);
 }
 
+static size_t calculateOverheadCost(const u32 numPages) {
+    return sizeof(bytes_t) * numPages; // page pointer array
+}
+
+static f32 calculateOverhead(const u32 numPages, const u32 numPagesWithData, const u32 pageSize) {
+    const size_t cost = calculateOverheadCost(numPages);
+    const size_t size = (size_t)pageSize * numPagesWithData;
+    return (f32)cost / size;
+}
+
+static bool memShouldMergePages(const M3Memory* mem) {
+    const f32 currentOverhead = calculateOverhead(mem->numSparsePages, mem->pagesWithData, mem->pageSize);
+    if (currentOverhead < mem->mergeThreshold) {
+        return false;
+    }
+
+    const f32 previewOverhead = calculateOverhead(mem->numSparsePages, mem->pagesWithData - 1, mem->pageSize);
+    return previewOverhead < currentOverhead;
+}
+
+void memMergePages(M3Memory* mem) {
+    const u32 newPageSize = mem->pageSize * 2;
+    const u32 numNewPages = (mem->numSparsePages + 1) / 2;
+    bytes_t* newPages = m3_Malloc("merged memory pages", sizeof(bytes_t) * numNewPages);
+    for (u32 i = 0; i < mem->numSparsePages; i += 2) {
+        bytes_t page1 = mem->pages[i];
+        bytes_t page2 = NULL;
+        if (i+1 < mem->numSparsePages) {
+            page2 = mem->pages[i+1];
+        }
+        // skip if both pages are null
+        if (page1 == NULL && page2 == NULL) {
+            continue;
+        }
+        void* mergedPage = m3_Malloc("merged memory page", newPageSize);
+        if (page1 != NULL) {
+            memcpy(mergedPage, page1, mem->pageSize);
+        } else {
+            memset(mergedPage, 0, mem->pageSize);
+        }
+        if (page2 != NULL) {
+            memcpy((bytes_t*)mergedPage + mem->pageSize, page2, mem->pageSize);
+        } else {
+            memset((bytes_t*)mergedPage + mem->pageSize, 0, mem->pageSize);
+        }
+        newPages[i/2] = mergedPage;
+    }
+
+    u32 pagesWithData = 0;
+    for (u32 i = 0; i < numNewPages; i++) {
+        if (newPages[i] != NULL) {
+            pagesWithData++;
+        }
+    }
+
+    mem->pageSize = newPageSize;
+    mem->numSparsePages = numNewPages;
+    mem->pagesWithData = pagesWithData;
+    mem->pages = newPages;
+
+    for (u32 i = 0; i < numNewPages; i++) {
+        memDeletePageIfEmpty(mem, i);
+    }
+}
+
 void memInit(M3Memory* mem) {
+    mem->header.runtime = NULL;
+    mem->header.maxStack = NULL;
+    mem->header.length = 0;
+
+    mem->info.initPages = 0;
+    mem->info.maxPages = 0;
+    mem->info.numPages = 0;
+    mem->info.pageSize = 0;
+
     mem->pageSize = SPARSE_PAGE_SIZE;
     mem->pagesWithData = 0;
     mem->numSparsePages = 0;
     mem->pages = NULL;
+    mem->mergeThreshold = SPARSE_MERGE_THRESHOLD;
 }
 
 M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 size) {
@@ -106,9 +185,9 @@ M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 s
         pageOff = 0;
     }
 
-    // if (mem->mergeThreshold > 0 && memShouldMergePages(mem)) {
-    //     memMergePages(mem);
-    // }
+    if (mem->mergeThreshold > 0 && memShouldMergePages(mem)) {
+        memMergePages(mem);
+    }
 
     return m3Err_none;
 }

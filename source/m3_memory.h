@@ -19,6 +19,8 @@ typedef struct M3Memory
     u32      pagesWithData;
     u32      numSparsePages;
     bytes_t* pages;
+
+    float mergeThreshold;
 }
 M3Memory;
 
