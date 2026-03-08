@@ -1,30 +1,34 @@
 #ifndef m3_memory_h
 #define m3_memory_h
 
-#include "m3_core.h"
-#include "wasm3.h"
-
-
 typedef struct M3MemoryInfo
 {
     u32     initPages;
     u32     maxPages;
+    u32     numPages;
     u32     pageSize;
 }
 M3MemoryInfo;
 
-
 typedef struct M3Memory
 {
-    M3MemoryHeader *        mallocated;
+    M3MemoryHeader header;
+    M3MemoryInfo info;
 
-    u32                     numPages;
-    u32                     maxPages;
-    u32                     pageSize;
+    u32      pageSize;
+    u32      pagesWithData;
+    u32      numSparsePages;
+    bytes_t* pages;
 }
 M3Memory;
 
-typedef M3Memory *          IM3Memory;
+typedef M3Memory* IM3Memory;
+
+M3Result memStore(M3Memory* mem, u32 offset, const void* data, u32 size);
+
+M3Result memLoad(const M3Memory* mem, u32 offset, u32 size, void* dest);
+
+void memFree(M3Memory* mem);
 
 M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages);
 

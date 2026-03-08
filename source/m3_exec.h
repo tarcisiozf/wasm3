@@ -553,7 +553,7 @@ d_m3Op  (Call)
     m3ret_t r = Call (callPC, sp, _mem, d_m3OpDefaultArgs);
 # endif
 
-    _mem = memory->mallocated;
+    _mem = &memory->header;
 
     if (M3_LIKELY(not r))
         nextOp ();
@@ -597,7 +597,7 @@ d_m3Op  (CallIndirect)
                     r = Call (function->compiled, sp, _mem, d_m3OpDefaultArgs);
 # endif
 
-                    _mem = memory->mallocated;
+                    _mem = &memory->header;
 
                     if (M3_LIKELY(not r))
                         nextOpDirect ();
@@ -686,7 +686,7 @@ d_m3Op  (CallRawFunction)
 #endif
 
     if (M3_UNLIKELY(possible_trap)) {
-        _mem = memory->mallocated;
+        _mem = &memory->header;
         pushBacktraceFrame ();
     }
     forwardTrap (possible_trap);
@@ -697,7 +697,7 @@ d_m3Op  (MemSize)
 {
     IM3Memory memory            = m3MemInfo (_mem);
 
-    _r0 = memory->numPages;
+    _r0 = memory->info.numPages;
 
     nextOp ();
 }
@@ -710,17 +710,17 @@ d_m3Op  (MemGrow)
 
     i32 numPagesToGrow = _r0;
     if (numPagesToGrow >= 0) {
-        _r0 = memory->numPages;
+        _r0 = memory->info.numPages;
 
         if (M3_LIKELY(numPagesToGrow))
         {
-            u32 requiredPages = memory->numPages + numPagesToGrow;
+            u32 requiredPages = memory->info.numPages + numPagesToGrow;
 
             M3Result r = ResizeMemory (runtime, requiredPages);
             if (r)
                 _r0 = -1;
 
-            _mem = memory->mallocated;
+            _mem = &memory->header;
         }
     }
     else
@@ -852,7 +852,7 @@ d_m3Op  (Entry)
 #endif
 
         if (M3_UNLIKELY(r)) {
-            _mem = memory->mallocated;
+            _mem = &memory->header;
             fillBacktraceFrame ();
         }
         forwardTrap (r);
@@ -887,7 +887,7 @@ d_m3Op  (Loop)
 #endif
         // linear memory pointer needs refreshed here because the block it's looping over
         // can potentially invoke the grow operation.
-        _mem = memory->mallocated;
+        _mem = &memory->header;
     }
     while (r == _pc);
 

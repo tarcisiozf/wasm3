@@ -1,0 +1,5 @@
+- [X] m3_GetMemory
+- [ ] m3MemData
+- [ ] m3MemRuntime
+- [ ] m3MemInfo
+- [ ] mem out of bounds error handling

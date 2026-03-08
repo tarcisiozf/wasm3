@@ -439,8 +439,9 @@ M3Result repl_compile  ()
 
 M3Result repl_dump  ()
 {
-    uint32_t len;
-    uint8_t* mem = m3_GetMemory(runtime, &len, 0);
+    uint32_t len = m3_GetMemorySize(runtime);
+    void* mem = malloc(len);
+    m3_GetMemory(runtime, 0, &mem);
     if (mem) {
         FILE* f = fopen ("wasm3_dump.bin", "wb");
         if (!f) {

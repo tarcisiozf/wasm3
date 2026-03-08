@@ -1,41 +1,42 @@
 #include "m3_core.h"
+#include "m3_env.h"
+#include "m3_exception.h"
+#include "m3_memory.h"
 
-#define PAGE_SIZE 65536
+#define MEM_PAGE_SIZE 65536
 
-typedef struct M3Memory {
-    u32     numPages;
-    u32     maxPages;
-
-    u32 pageSize;
-    u32 pagesWithData;
-    u32 _numPages;
-    bytes_t* pages;
-
-    f32 mergeThreshold;
-} M3Memory;
-
+#ifndef SPARSE_PAGE_SIZE
+#define SPARSE_PAGE_SIZE 256
+#endif
 
 void memEnsurePages(M3Memory* mem, const u32 offset, const u32 size) {
-    const u32 requiredSize = ((offset+size) / mem->pageSize) + 1;
-    if (requiredSize <= mem->_numPages) {
+    const u32 requiredSize = (offset + size + mem->pageSize - 1) / mem->pageSize;
+    if (requiredSize <= mem->numSparsePages) {
         return;
     }
 
-    bytes_t* pages = m3_Realloc("memory pages", mem->pages, sizeof(bytes_t) * requiredSize, sizeof(bytes_t) * mem->_numPages);
-    for (u32 i = mem->_numPages; i < requiredSize; i++) {
+    bytes_t* pages = m3_Realloc("memory pages", mem->pages, sizeof(bytes_t) * requiredSize, sizeof(bytes_t) * mem->numSparsePages);
+    for (u32 i = mem->numSparsePages; i < requiredSize; i++) {
         pages[i] = NULL;
     }
     mem->pages = pages;
 }
 
-bool bytesIsEmpty(const void * data, u32 size);
+static bool bytesIsEmpty(const u8* bytes, const u32 size) {
+    for (u32 i = 0; i < size; i++) {
+        if (bytes[i] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
 
 static u32 min(const u32 a, const u32 b) {
     return a < b ? a : b;
 }
 
 static bool memHasPage(const M3Memory* mem, const u32 index) {
-    return index < mem->_numPages && mem->pages[index] != NULL;
+    return index < mem->numSparsePages && mem->pages[index] != NULL;
 }
 
 static void memDeletePageIfEmpty(M3Memory* mem, const u32 index) {
@@ -58,40 +59,16 @@ static void memWriteToPage(M3Memory* mem, const u32 pageIdx, const u32 pageOff, 
 }
 
 static void memLoadFromPage(const M3Memory* mem, const u32 pageIdx, const u32 pageOff, void* data, const u32 size) {
-    if (pageIdx >= mem->_numPages || mem->pages[pageIdx] == NULL) {
+    if (pageIdx >= mem->numSparsePages || mem->pages[pageIdx] == NULL) {
         return;
     }
     memcpy(data, (void*)(mem->pages[pageIdx] + pageOff), size);
 }
 
-static size_t calculateOverheadCost(const u32 numPages) {
-    return sizeof(bytes_t) * numPages; // page pointer array
-}
-
-static f32 calculateOverhead(const u32 numPages, const u32 numPagesWithData, const u32 pageSize) {
-    const size_t cost = calculateOverheadCost(numPages);
-    const size_t size = (size_t)pageSize * numPagesWithData;
-    return (f32)cost / size;
-}
-
-static bool memShouldMergePages(const M3Memory* mem) {
-    const f32 currentOverhead = calculateOverhead(mem->_numPages, mem->pagesWithData, mem->pageSize);
-    if (currentOverhead < mem->mergeThreshold) {
-        return false;
-    }
-
-    const f32 previewOverhead = calculateOverhead(mem->_numPages, mem->pagesWithData - 1, mem->pageSize);
-    return previewOverhead < currentOverhead;
-}
-
-void memMergePages(M3Memory* mem) {
-
-}
-
-void memStore(M3Memory* mem, const u32 offset, const void* data, const u32 size) {
-    if (size == 0) return;
-    if (offset + size > mem->numPages * PAGE_SIZE) {
-        // TODO: Out of bounds
+M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 size) {
+    if (size == 0) return m3Err_none;
+    if (offset + size > mem->info.initPages * MEM_PAGE_SIZE) {
+        return m3Err_wasmMemoryOverflow;
     }
 
     memEnsurePages(mem, offset, size);
@@ -117,30 +94,62 @@ void memStore(M3Memory* mem, const u32 offset, const void* data, const u32 size)
         pageOff = 0;
     }
 
-    if (mem->mergeThreshold > 0 && memShouldMergePages(mem)) {
-        memMergePages(mem);
-    }
+    // if (mem->mergeThreshold > 0 && memShouldMergePages(mem)) {
+    //     memMergePages(mem);
+    // }
+
+    return m3Err_none;
 }
 
-void* memLoad(const M3Memory* mem, const u32 offset, const u32 size) {
-    if (size == 0) return NULL;
-    if (offset + size > mem->numPages * PAGE_SIZE) {
-        // TODO: Out of bounds
+M3Result memLoad(const M3Memory* mem, const u32 offset, const u32 size, void* dest) {
+    if (size == 0) return m3Err_none;
+    if (offset + size > mem->info.initPages * MEM_PAGE_SIZE) {
+        return m3Err_wasmMemoryOverflow;
     }
 
-    void* data = m3_Malloc("memory load", size);
-    memset(data, 0, size);
+    memset(dest, 0, size);
 
     u32 pageIdx = offset / mem->pageSize;
     u32 pageOff = offset % mem->pageSize;
     u32 written = 0;
     while (written < size) {
         const u32 n = min(size-written, mem->pageSize-pageOff);
-        memLoadFromPage(mem, pageIdx, pageOff, data + written, n);
+        memLoadFromPage(mem, pageIdx, pageOff, dest + written, n);
         written += n;
         pageIdx++;
         pageOff = 0;
     }
 
-    return data;
+    return m3Err_none;
+}
+
+void memFree(M3Memory* mem) {
+    if (mem == NULL) {
+        return;
+    }
+    if (mem->pages == NULL) {
+        return;
+    }
+    for (u32 i = 0; i < mem->numSparsePages; i++) {
+        if (mem->pages[i] != NULL) {
+            m3_Free(mem->pages[i]);
+        }
+    }
+    m3_Free(mem->pages);
+}
+
+M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
+{
+    M3Memory* memory = & io_runtime->memory;
+    const u32 numPagesToAlloc = i_numPages;
+
+    if (numPagesToAlloc > memory->info.numPages) {
+        return m3Err_wasmMemoryOverflow;
+    }
+
+    memory->header.length = i_numPages * MEM_PAGE_SIZE;
+    memory->header.runtime = io_runtime;
+    memory->header.maxStack = (m3slot_t *) io_runtime->stack + io_runtime->numStackSlots;
+
+    return m3Err_none;
 }
