@@ -160,7 +160,7 @@ void memInit(M3Memory* mem) {
     mem->info.initPages = 0;
     mem->info.maxPages = 0;
     mem->info.numPages = 0;
-    mem->info.pageSize = 0;
+    mem->info.pageSize = d_m3DefaultMemPageSize;
 
     mem->pageSize = SPARSE_PAGE_SIZE;
     mem->pagesWithData = 0;
