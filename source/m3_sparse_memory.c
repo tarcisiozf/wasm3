@@ -147,6 +147,11 @@ void memMergePages(M3Memory* mem) {
     }
 }
 
+static bool memCanFit(const M3Memory* mem, const u32 offset, const u32 size) {
+    return mem->info.maxPages == 0
+        || offset + size < mem->info.maxPages * mem->info.pageSize;
+}
+
 void memInit(M3Memory* mem) {
     mem->header.runtime = NULL;
     mem->header.maxStack = NULL;
@@ -166,7 +171,7 @@ void memInit(M3Memory* mem) {
 
 M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 size) {
     if (size == 0) return m3Err_none;
-    if (offset + size > mem->header.length) {
+    if (!memCanFit(mem, offset, size)) {
         return m3Err_wasmMemoryOverflow;
     }
 
@@ -202,7 +207,7 @@ M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 s
 
 M3Result memLoad(const M3Memory* mem, const u32 offset, const u32 size, void* dest) {
     if (size == 0) return m3Err_none;
-    if (offset + size > mem->header.length) {
+    if (!memCanFit(mem, offset, size)) {
         return m3Err_wasmMemoryOverflow;
     }
 
@@ -242,7 +247,7 @@ M3Result  ResizeMemory  (IM3Runtime io_runtime, u32 i_numPages)
     M3Memory* memory = & io_runtime->memory;
     const u32 numPagesToAlloc = i_numPages;
 
-    if (numPagesToAlloc > memory->info.numPages) {
+    if (numPagesToAlloc > memory->info.maxPages) {
         return m3Err_wasmMemoryOverflow;
     }
 

@@ -334,8 +334,6 @@ M3Result  EvaluateExpression  (IM3Module i_module, void * o_expressed, u8 i_type
 
 M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 {
-    M3Result result = m3Err_none;                                     //d_m3Assert (not io_runtime->memory.wasmPages);
-
     memInit(&io_runtime->memory);
 
     if (not i_module->memoryImported)
@@ -344,11 +342,9 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
         u32 pageSize = i_module->memoryInfo.pageSize;
         io_runtime->memory.info.maxPages = maxPages ? maxPages : 65536;
         io_runtime->memory.info.pageSize = pageSize ? pageSize : d_m3DefaultMemPageSize;
-
-        result = ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
     }
 
-    return result;
+    return ResizeMemory (io_runtime, i_module->memoryInfo.initPages);
 }
 
 M3Result  InitGlobals  (IM3Module io_module)
