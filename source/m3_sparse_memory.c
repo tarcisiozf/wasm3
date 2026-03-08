@@ -29,6 +29,7 @@ void memEnsurePages(M3Memory* mem, const u32 offset, const u32 size) {
         pages[i] = NULL;
     }
     mem->pages = pages;
+    mem->numSparsePages = requiredSize;
 }
 
 static bool bytesIsEmpty(const u8* bytes, const u32 size) {
@@ -98,29 +99,36 @@ void memMergePages(M3Memory* mem) {
     const u32 newPageSize = mem->pageSize * 2;
     const u32 numNewPages = (mem->numSparsePages + 1) / 2;
     bytes_t* newPages = m3_Malloc("merged memory pages", sizeof(bytes_t) * numNewPages);
+
+    memset(newPages, 0, sizeof(bytes_t) * numNewPages);
+
     for (u32 i = 0; i < mem->numSparsePages; i += 2) {
         bytes_t page1 = mem->pages[i];
-        bytes_t page2 = NULL;
-        if (i+1 < mem->numSparsePages) {
-            page2 = mem->pages[i+1];
-        }
-        // skip if both pages are null
+        bytes_t page2 = (i + 1 < mem->numSparsePages) ? mem->pages[i + 1] : NULL;
+
         if (page1 == NULL && page2 == NULL) {
             continue;
         }
-        void* mergedPage = m3_Malloc("merged memory page", newPageSize);
+        u8* mergedPage = m3_Malloc("merged memory page", newPageSize);
         if (page1 != NULL) {
             memcpy(mergedPage, page1, mem->pageSize);
         } else {
             memset(mergedPage, 0, mem->pageSize);
         }
         if (page2 != NULL) {
-            memcpy((bytes_t*)mergedPage + mem->pageSize, page2, mem->pageSize);
+            memcpy(mergedPage + mem->pageSize, page2, mem->pageSize);
         } else {
-            memset((bytes_t*)mergedPage + mem->pageSize, 0, mem->pageSize);
+            memset(mergedPage + mem->pageSize, 0, mem->pageSize);
         }
-        newPages[i/2] = mergedPage;
+        newPages[i / 2] = mergedPage;
     }
+
+    for (u32 i = 0; i < mem->numSparsePages; i++) {
+        if (mem->pages[i] != NULL) {
+            m3_Free(mem->pages[i]);
+        }
+    }
+    m3_Free(mem->pages);
 
     u32 pagesWithData = 0;
     for (u32 i = 0; i < numNewPages; i++) {
