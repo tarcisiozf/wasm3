@@ -336,6 +336,8 @@ M3Result  InitMemory  (IM3Runtime io_runtime, IM3Module i_module)
 {
     M3Result result = m3Err_none;                                     //d_m3Assert (not io_runtime->memory.wasmPages);
 
+    memInit(&io_runtime->memory);
+
     if (not i_module->memoryImported)
     {
         u32 maxPages = i_module->memoryInfo.maxPages;
@@ -394,8 +396,6 @@ M3Result  InitGlobals  (IM3Module io_module)
 M3Result  InitDataSegments  (M3Memory * io_memory, IM3Module io_module)
 {
     M3Result result = m3Err_none;
-
-    _throwif ("unallocated linear memory", !(io_memory->pages));
 
     for (u32 i = 0; i < io_module->numDataSegments; ++i)
     {

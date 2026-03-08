@@ -24,6 +24,8 @@ M3Memory;
 
 typedef M3Memory* IM3Memory;
 
+void memInit(M3Memory* mem);
+
 M3Result memStore(M3Memory* mem, u32 offset, const void* data, u32 size);
 
 M3Result memLoad(const M3Memory* mem, u32 offset, u32 size, void* dest);

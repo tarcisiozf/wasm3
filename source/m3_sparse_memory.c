@@ -15,7 +15,12 @@ void memEnsurePages(M3Memory* mem, const u32 offset, const u32 size) {
         return;
     }
 
-    bytes_t* pages = m3_Realloc("memory pages", mem->pages, sizeof(bytes_t) * requiredSize, sizeof(bytes_t) * mem->numSparsePages);
+    bytes_t* pages = m3_Realloc(
+        "memory pages",
+        mem->pages,
+        sizeof(bytes_t) * requiredSize,
+        sizeof(bytes_t) * mem->numSparsePages
+    );
     for (u32 i = mem->numSparsePages; i < requiredSize; i++) {
         pages[i] = NULL;
     }
@@ -65,9 +70,16 @@ static void memLoadFromPage(const M3Memory* mem, const u32 pageIdx, const u32 pa
     memcpy(data, (void*)(mem->pages[pageIdx] + pageOff), size);
 }
 
+void memInit(M3Memory* mem) {
+    mem->pageSize = SPARSE_PAGE_SIZE;
+    mem->pagesWithData = 0;
+    mem->numSparsePages = 0;
+    mem->pages = NULL;
+}
+
 M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 size) {
     if (size == 0) return m3Err_none;
-    if (offset + size > mem->info.initPages * MEM_PAGE_SIZE) {
+    if (offset + size > mem->header.length) {
         return m3Err_wasmMemoryOverflow;
     }
 
@@ -103,7 +115,7 @@ M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 s
 
 M3Result memLoad(const M3Memory* mem, const u32 offset, const u32 size, void* dest) {
     if (size == 0) return m3Err_none;
-    if (offset + size > mem->info.initPages * MEM_PAGE_SIZE) {
+    if (offset + size > mem->header.length) {
         return m3Err_wasmMemoryOverflow;
     }
 
