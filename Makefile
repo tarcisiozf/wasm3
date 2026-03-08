@@ -1,8 +1,8 @@
 build-lib:
-	cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+	cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_WASI=simple && make -j$(nproc)
 
 build-lib-debug:
-	cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug && make -j$(nproc)
+	cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple && make -j$(nproc)
 
 build-app: build-lib
 	gcc -o run_wasm run_wasm.c -I source -L build/source -lm3 -lm \
