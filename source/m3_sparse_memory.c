@@ -169,7 +169,7 @@ void memInit(M3Memory* mem) {
     mem->mergeThreshold = SPARSE_MERGE_THRESHOLD;
 }
 
-M3Result memStore(M3Memory* mem, const u32 offset, const void* data, const u32 size) {
+M3Result memStore(M3Memory* mem, const void* data, const u32 offset, const u32 size) {
     if (size == 0) return m3Err_none;
     if (!memCanFit(mem, offset, size)) {
         return m3Err_wasmMemoryOverflow;

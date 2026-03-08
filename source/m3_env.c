@@ -405,7 +405,7 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
         m3log (runtime, "loading data segment: %d; size: %d; offset: %d", i, segment->size, segmentOffset);
 
         if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= io_memory->header.length) {
-            result = memStore (io_memory, segmentOffset, segment->data, segment->size);
+            result = memStore (io_memory, segment->data, segmentOffset, segment->size);
             _throwif ("data segment store out of bounds", result == m3Err_wasmMemoryOverflow);
         } else {
             _throw ("data segment out of bounds");
