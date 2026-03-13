@@ -16,6 +16,7 @@
 #include <stdint.h>
 
 #include "m3_api_libc.h"
+#include "m3_api_wasi.h"
 #include "wasm3.h"
 #include "m3_env.h"
 
@@ -27,14 +28,46 @@ static void fatal(const char *step, M3Result err) {
     exit(1);
 }
 
-const void* foo(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
-    printf("foo called\n");
+const void* http_req(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
+    printf("http_req called\n");
     return m3Err_none;
 }
 
-M3Result link_to_runtime(IM3Runtime rt, const char* moduleName, const char* funcName, const char* sig, const M3RawCall fn) {
-    const TaggedUserData userdata = { .tag = 0x42 };
-    return m3_LinkRawFunctionEx(rt->modules, moduleName, funcName, sig, fn, &userdata);
+const void* yield(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
+    printf("yield called\n");
+    return m3Err_none;
+}
+
+const void* set_value(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
+    printf("set_value called\n");
+    return m3Err_none;
+}
+
+const void* wasi_sched_yield_stub(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
+    printf("WASI sched_yield called\n");fflush(stdout);
+    sp[0] = 0;
+    return m3Err_none;
+}
+
+const void* wasi_poll_oneoff_stub(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
+    printf("WASI poll_oneoff called\n");fflush(stdout);
+    sp[0] = 0;
+    return m3Err_none;
+}
+
+void print_unresolved_imports(IM3Runtime runtime) {
+    IM3Module module = runtime->modules;
+    if (!module) return;
+    printf("numFuncImports: %d, numFunctions: %d\n", module->numFuncImports, module->numFunctions);
+    for (uint32_t i = 0; i < module->numFuncImports; i++) {
+        IM3Function f = &module->functions[i];
+        if (f->compiled == 0) {
+            printf("IMPORT[%d]: %s.%s compiled=%p\n", i,
+                f->import.moduleUtf8 ? f->import.moduleUtf8 : "(null)",
+                f->import.fieldUtf8 ? f->import.fieldUtf8 : "(null)",
+                (void*)f->compiled);
+        }
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -84,8 +117,25 @@ int main(int argc, char *argv[]) {
     result = m3_LinkSpecTest(runtime->modules);
     if (result) fatal("m3_LinkSpecTest", result);
 
-    result = link_to_runtime(runtime, "env", "foo", "v(i)", foo);
-    if (result) fatal("link_to_runtime", result);
+    result = m3_LinkRawFunction(runtime->modules, "wasi_snapshot_preview1", "sched_yield", "i()", wasi_sched_yield_stub);
+    if (result) printf("sched_yield link: %s\n", result);
+
+    result = m3_LinkRawFunction(runtime->modules, "wasi_snapshot_preview1", "poll_oneoff", "i(iiii)", wasi_poll_oneoff_stub);
+    if (result) printf("poll_oneoff link: %s\n", result);
+
+    result = m3_LinkWASI(runtime->modules);
+    if (result) fatal("m3_LinkWASI", result);
+
+    result = m3_LinkRawFunction(runtime->modules, "sdk", "http_req", "i(ii)", http_req);
+    if (result) fatal("sdk.http_req", result);
+
+    result = m3_LinkRawFunction(runtime->modules, "sdk", "yield", "v()", yield);
+    if (result) fatal("sdk.yield", result);
+
+    result = m3_LinkRawFunction(runtime->modules, "sdk", "set_value", "v(i)", set_value);
+    if (result) fatal("sdk.set_value", result);
+
+    print_unresolved_imports(runtime);
 
     /* ── 4. Optionally run the start section (like __wasm_call_ctors) ───── */
     result = m3_RunStart(module);
