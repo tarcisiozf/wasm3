@@ -22,6 +22,8 @@
 
 #define STACK_SIZE_BYTES  (64 * 1024)   /* 64 KB interpreter stack */
 
+int http_get(const char* url, char* buffer, const size_t buf_size);
+
 /* Print a human-readable error and exit. */
 static void fatal(const char *step, M3Result err) {
     fprintf(stderr, "[wasm3] %s failed: %s\n", step, err);
@@ -29,7 +31,58 @@ static void fatal(const char *step, M3Result err) {
 }
 
 const void* http_req(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
-    printf("http_req called\n");
+    printf("SDK http_req called\n");fflush(stdout);
+
+    M3Result result = m3Err_none;
+    uint32_t offset = (uint32_t)sp[1];
+    uint32_t len = (uint32_t)sp[2];
+
+    char url[len+1];
+    url[len] = '\0';
+    result = memLoad(&rt->memory, url, offset, len);
+    if (result) return result;
+
+    printf("SDK http_req called with URL: %s\n", url);fflush(stdout);
+
+    uint64_t ok = 0;
+
+    //printf("SDK http_req called with URL: %s\n", url);
+    size_t buf_size = 256;
+    char buf[buf_size];
+    if (http_get(url, buf, buf_size) != 0) {
+        goto end;
+    }
+    size_t response_len = strnlen(buf, buf_size);
+
+    //printf("HTTP GET response (%lu): %s\n", response_len, buf);
+
+    IM3Function reserve;
+    if (m3_FindFunction(&reserve, rt, "reserve")) {
+        printf("Error finding 'reserve' function\n");
+        goto end;
+    }
+
+    if (m3_CallV(reserve, response_len)) {
+        printf("Error calling 'reserve' function\n");
+        goto end;
+    }
+
+    uint32_t dest;
+    if (m3_GetResultsV(reserve, &dest)) {
+        printf("Error getting result from 'reserve' function\n");
+        goto end;
+    }
+
+    result = memStore(&rt->memory, buf, dest, response_len);
+    if (result) {
+        printf("Error writing response to wasm memory\n");
+        goto end;
+    }
+
+    ok = 1;
+
+    end:
+        sp[0] = ok;
     return m3Err_none;
 }
 
@@ -40,6 +93,10 @@ const void* yield(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
 
 const void* set_value(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
     printf("set_value called\n");
+    int32_t* value_ptr = (int32_t*)rt->userdata;
+    if (value_ptr) {
+        *value_ptr = (int32_t)sp[0];
+    }
     return m3Err_none;
 }
 
@@ -137,6 +194,13 @@ int main(int argc, char *argv[]) {
 
     print_unresolved_imports(runtime);
 
+    /* ── Set up WASI context (argc/argv) ────────────────────────────────── */
+    m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
+    if (wasi_ctx) {
+        wasi_ctx->argc = argc;
+        wasi_ctx->argv = (const char **)argv;
+    }
+
     /* ── 4. Optionally run the start section (like __wasm_call_ctors) ───── */
     result = m3_RunStart(module);
     /* m3_RunStart returns an error when there is no start function – ignore it */
@@ -152,6 +216,19 @@ int main(int argc, char *argv[]) {
     /* Pass any extra command-line tokens as string arguments to the function. */
     result = m3_CallArgv(func, (uint32_t)extra_argc, extra_argv);
     if (result) {
+        /* Handle WASI proc_exit gracefully */
+        if (result == m3Err_trapExit) {
+            m3_wasi_context_t* ctx = m3_GetWasiContext();
+            int exit_code = ctx ? ctx->exit_code : 0;
+            if (exit_code != 0) {
+                fprintf(stderr, "[wasm3] program exited with code %d\n", exit_code);
+            }
+            m3_FreeRuntime(runtime);
+            m3_FreeEnvironment(env);
+            free(wasm);
+            return 0;
+        }
+
         M3ErrorInfo info;
         m3_GetErrorInfo(runtime, &info);
         fprintf(stderr, "[wasm3] call to \"%s\" failed: %s\n", func_name, result);

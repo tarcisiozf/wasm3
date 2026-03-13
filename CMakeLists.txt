@@ -243,7 +243,8 @@ include(GNUInstallDirs)
 
 install(TARGETS ${OUT_FILE} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-add_executable(run_wasm run_wasm.c)
+add_executable(run_wasm run_wasm.c http_client.c)
+
 target_link_libraries(run_wasm m3)
 target_include_directories(run_wasm PRIVATE ${CMAKE_SOURCE_DIR}/source)
 
