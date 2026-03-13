@@ -27,6 +27,16 @@ static void fatal(const char *step, M3Result err) {
     exit(1);
 }
 
+const void* foo(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
+    printf("foo called\n");
+    return m3Err_none;
+}
+
+M3Result link_to_runtime(IM3Runtime rt, const char* moduleName, const char* funcName, const char* sig, const M3RawCall fn) {
+    const TaggedUserData userdata = { .tag = 0x42 };
+    return m3_LinkRawFunctionEx(rt->modules, moduleName, funcName, sig, fn, &userdata);
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <file.wasm> [function] [args...]\n", argv[0]);
@@ -73,6 +83,9 @@ int main(int argc, char *argv[]) {
     if (result) fatal("m3_LoadModule", result);
     result = m3_LinkSpecTest(runtime->modules);
     if (result) fatal("m3_LinkSpecTest", result);
+
+    result = link_to_runtime(runtime, "env", "foo", "v(i)", foo);
+    if (result) fatal("link_to_runtime", result);
 
     /* ── 4. Optionally run the start section (like __wasm_call_ctors) ───── */
     result = m3_RunStart(module);

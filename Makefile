@@ -13,10 +13,10 @@ build-app-debug: build-lib-debug
 	    -Dd_m3HasTracer -Dd_m3HasWASI -DDEBUG=1 -g -O0
 
 run: build-app
-	./run_wasm test/lang/fib32.wasm fib 10
+	./run_wasm foo.wasm
 
 run-debug: build-app-debug
-	./run_wasm test/lang/fib32.wasm fib 10
+	./run_wasm foo.wasm
 
 # --- sparse memory unit tests -----------------------------------------------
 

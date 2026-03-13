@@ -242,3 +242,15 @@ message("----")
 include(GNUInstallDirs)
 
 install(TARGETS ${OUT_FILE} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+add_executable(run_wasm run_wasm.c)
+target_link_libraries(run_wasm m3)
+target_include_directories(run_wasm PRIVATE ${CMAKE_SOURCE_DIR}/source)
+
+if(NOT MSVC AND NOT WASIENV AND NOT EMSCRIPTEN AND NOT EMSCRIPTEN_LIB)
+  target_link_libraries(run_wasm m)
+endif()
+
+if(BUILD_WASI MATCHES "uvwasi")
+  target_link_libraries(run_wasm uvwasi_a uv_a)
+endif()
