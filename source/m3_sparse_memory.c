@@ -186,7 +186,7 @@ M3Result memStore(M3Memory* mem, const void* data, const u32 offset, const u32 s
         const u32 n = min(size-written, mem->pageSize-pageOff);
 
         if (!isEmpty || memHasPage(mem, pageIdx)) {
-            memWriteToPage(mem, pageIdx, pageOff, data + written, n);
+            memWriteToPage(mem, pageIdx, pageOff, (const uint8_t*)data + written, n);
             if (isEmpty) {
                 // current write is empty but page had data, check if we can delete it
                 memDeletePageIfEmpty(mem, pageIdx);
@@ -218,7 +218,7 @@ M3Result memLoad(const M3Memory* mem, void* dest, const u32 offset, const u32 si
     u32 written = 0;
     while (written < size) {
         const u32 n = min(size-written, mem->pageSize-pageOff);
-        memLoadFromPage(mem, pageIdx, pageOff, dest + written, n);
+        memLoadFromPage(mem, pageIdx, pageOff, (uint8_t*)dest + written, n);
         written += n;
         pageIdx++;
         pageOff = 0;

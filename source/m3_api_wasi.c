@@ -631,7 +631,7 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
     m3ApiGetArg      (__wasi_size_t        , iovs_len)
     m3ApiGetArgMem   (uint32_t             , nwritten_offset)
 
-    printf("\targs fd=%d, iovs_offset=%u, iovs_len=%zu, nwritten_offset=%u\n", fd, wasi_iovs_offset, iovs_len, nwritten_offset);fflush(stdout);
+    printf("\targs fd=%d, iovs_offset=%u, iovs_len=%u, nwritten_offset=%u\n", fd, wasi_iovs_offset, iovs_len, nwritten_offset);fflush(stdout);
 
     m3ApiCheckMem(wasi_iovs_offset, iovs_len * sizeof(wasi_iovec_t));
     m3ApiCheckMem(nwritten_offset,  sizeof(__wasi_size_t));

@@ -24,7 +24,7 @@ if(WASIENV)
 elseif(EMSCRIPTEN OR EMSCRIPTEN_LIB)
   set(BUILD_WASI "none" CACHE STRING "WASI implementation")
 else()
-  set(BUILD_WASI "uvwasi" CACHE STRING "WASI implementation")
+  set(BUILD_WASI "simple" CACHE STRING "WASI implementation")
 endif()
 set_property(CACHE BUILD_WASI PROPERTY STRINGS none simple uvwasi metawasi)
 
