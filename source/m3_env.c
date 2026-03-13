@@ -406,6 +406,30 @@ _       (EvaluateExpression (io_module, & segmentOffset, c_m3Type_i32, & start, 
 
         if (segmentOffset >= 0 && (size_t)(segmentOffset) + segment->size <= io_memory->header.length) {
             result = memStore (io_memory, segment->data, segmentOffset, segment->size);
+            if (result) {
+                printf("result: %s\n\n", result);
+
+                printf("mem->header.runtime = %p\n", io_memory->header.runtime);
+                printf("mem->header.maxStack = %p\n", io_memory->header.maxStack);
+                printf("mem->header.length = %lu\n\n", io_memory->header.length);
+
+                printf("mem->info.initPages = %u\n", io_memory->info.initPages);
+                printf("mem->info.maxPages = %u\n", io_memory->info.maxPages);
+                printf("mem->info.numPages = %u\n", io_memory->info.numPages);
+                printf("mem->info.pageSize = %u\n\n", io_memory->info.pageSize);
+
+                printf("mem->pageSize = %u\n", io_memory->pageSize);
+                printf("mem->pagesWithData = %u\n", io_memory->pagesWithData);
+                printf("mem->numSparsePages = %u\n", io_memory->numSparsePages);
+                printf("mem->pages = %p\n", io_memory->pages);
+                printf("mem->mergeThreshold = %f\n\n", io_memory->mergeThreshold);
+
+                printf("segmentOffset: %u\n", segmentOffset);
+                printf("segment->size: %u\n", segment->size);
+                printf("segment->data: %p\n", segment->data);
+
+                fflush(stdout);
+            }
             _throwif ("data segment store out of bounds", result == m3Err_wasmMemoryOverflow);
         } else {
             _throw ("data segment out of bounds");

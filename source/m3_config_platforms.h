@@ -96,6 +96,24 @@
 #   define M3_MUSTTAIL
 # endif
 
+/*
+ * Portable alloca
+ */
+# if defined(M3_COMPILER_MSVC)
+#  include <malloc.h>
+#  ifndef alloca
+#    define alloca _alloca
+#  endif
+# elif defined(__APPLE__) || defined(__FreeBSD__)
+#  include <stdlib.h>
+   // On macOS/BSD, alloca is available via __builtin_alloca
+#  ifndef alloca
+#    define alloca __builtin_alloca
+#  endif
+# else
+#  include <alloca.h>
+# endif
+
 # ifndef M3_MIN
 #  define M3_MIN(A,B) (((A) < (B)) ? (A) : (B))
 # endif

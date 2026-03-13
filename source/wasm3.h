@@ -250,7 +250,7 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
     // Arguments and return values are passed in and out through the stack pointer _sp.
     // Placeholder return value slots are first and arguments after. So, the first argument is at _sp [numReturns]
     // Return values should be written into _sp [0] to _sp [num_returns - 1]
-    typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem);
+    typedef const void * (* M3RawCall) (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp);
 
     M3Result            m3_LinkRawFunction          (IM3Module              io_module,
                                                      const char * const     i_moduleName,
@@ -338,42 +338,42 @@ d_m3ErrorConst  (trapStackOverflow,             "[trap] stack overflow")
 //  raw function definition helpers
 //-------------------------------------------------------------------------------------------------------------------------------
 
-# define m3ApiOffsetToPtr(offset)   (void*)((uint8_t*)_mem + (uint32_t)(offset))
-# define m3ApiPtrToOffset(ptr)      (uint32_t)((uint8_t*)ptr - (uint8_t*)_mem)
-
 # define m3ApiReturnType(TYPE)                 TYPE* raw_return = ((TYPE*) (_sp++));
 # define m3ApiMultiValueReturnType(TYPE, NAME) TYPE* NAME = ((TYPE*) (_sp++));
 # define m3ApiGetArg(TYPE, NAME)               TYPE NAME = * ((TYPE *) (_sp++));
-# define m3ApiGetArgMem(TYPE, NAME)            TYPE NAME = (TYPE)m3ApiOffsetToPtr(* ((uint32_t *) (_sp++)));
+# define m3ApiGetArgMem(TYPE, NAME)            uint32_t NAME = * ((uint32_t *) (_sp++));
 
-# define m3ApiIsNullPtr(addr)       ((void*)(addr) <= _mem)
-# define m3ApiCheckMem(addr, len)   { if (M3_UNLIKELY(((void*)(addr) < _mem) || ((uint64_t)(uintptr_t)(addr) + (len)) > ((uint64_t)(uintptr_t)(_mem)+m3_GetMemorySize(runtime)))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
+# define m3ApiIsNullPtr(offset)     ((offset) == 0)
+# define m3ApiCheckMem(offset, len) { if (M3_UNLIKELY(((uint64_t)(offset) + (len)) > m3_GetMemorySize(runtime))) m3ApiTrap(m3Err_trapOutOfBoundsMemoryAccess); }
 
-# define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp, void * _mem)
+# define m3ApiRawFunction(NAME)     const void * NAME (IM3Runtime runtime, IM3ImportContext _ctx, uint64_t * _sp)
 # define m3ApiReturn(VALUE)                   { *raw_return = (VALUE); return m3Err_none;}
 # define m3ApiMultiValueReturn(NAME, VALUE)   { *NAME = (VALUE); }
 # define m3ApiTrap(VALUE)                     { return VALUE; }
 # define m3ApiSuccess()                       { return m3Err_none; }
 
-# if defined(M3_BIG_ENDIAN)
-#  define m3ApiReadMem8(ptr)         (* (uint8_t *)(ptr))
-#  define m3ApiReadMem16(ptr)        m3_bswap16((* (uint16_t *)(ptr)))
-#  define m3ApiReadMem32(ptr)        m3_bswap32((* (uint32_t *)(ptr)))
-#  define m3ApiReadMem64(ptr)        m3_bswap64((* (uint64_t *)(ptr)))
-#  define m3ApiWriteMem8(ptr, val)   { * (uint8_t  *)(ptr)  = (val); }
-#  define m3ApiWriteMem16(ptr, val)  { * (uint16_t *)(ptr) = m3_bswap16((val)); }
-#  define m3ApiWriteMem32(ptr, val)  { * (uint32_t *)(ptr) = m3_bswap32((val)); }
-#  define m3ApiWriteMem64(ptr, val)  { * (uint64_t *)(ptr) = m3_bswap64((val)); }
-# else
-#  define m3ApiReadMem8(ptr)         (* (uint8_t *)(ptr))
-#  define m3ApiReadMem16(ptr)        (* (uint16_t *)(ptr))
-#  define m3ApiReadMem32(ptr)        (* (uint32_t *)(ptr))
-#  define m3ApiReadMem64(ptr)        (* (uint64_t *)(ptr))
-#  define m3ApiWriteMem8(ptr, val)   { * (uint8_t  *)(ptr) = (val); }
-#  define m3ApiWriteMem16(ptr, val)  { * (uint16_t *)(ptr) = (val); }
-#  define m3ApiWriteMem32(ptr, val)  { * (uint32_t *)(ptr) = (val); }
-#  define m3ApiWriteMem64(ptr, val)  { * (uint64_t *)(ptr) = (val); }
-# endif
+// Sparse memory access helpers - use memLoad/memStore through runtime->memory
+# define m3ApiMemory()              (&runtime->memory)
+
+// Read from wasm linear memory at a given offset into a local variable
+# define m3ApiReadMem8(offset)      m3ApiReadMemT(uint8_t, offset)
+# define m3ApiReadMem16(offset)     m3ApiReadMemT(uint16_t, offset)
+# define m3ApiReadMem32(offset)     m3ApiReadMemT(uint32_t, offset)
+# define m3ApiReadMem64(offset)     m3ApiReadMemT(uint64_t, offset)
+
+// Write to wasm linear memory at a given offset from a local value
+# define m3ApiWriteMem8(offset, val)  { uint8_t  _tmp = (val); memStore(m3ApiMemory(), &_tmp, (uint32_t)(offset), sizeof(_tmp)); }
+# define m3ApiWriteMem16(offset, val) { uint16_t _tmp = (val); memStore(m3ApiMemory(), &_tmp, (uint32_t)(offset), sizeof(_tmp)); }
+# define m3ApiWriteMem32(offset, val) { uint32_t _tmp = (val); memStore(m3ApiMemory(), &_tmp, (uint32_t)(offset), sizeof(_tmp)); }
+# define m3ApiWriteMem64(offset, val) { uint64_t _tmp = (val); memStore(m3ApiMemory(), &_tmp, (uint32_t)(offset), sizeof(_tmp)); }
+
+// Helper: read a typed value from sparse memory (returns the value; declares a local)
+# define m3ApiReadMemT(TYPE, offset) \
+    ({ TYPE _rv = 0; memLoad(m3ApiMemory(), &_rv, (uint32_t)(offset), sizeof(TYPE)); _rv; })
+
+// Bulk memory helpers for loading/storing arbitrary data
+# define m3ApiMemLoad(dest, offset, size)   memLoad(m3ApiMemory(), (dest), (uint32_t)(offset), (uint32_t)(size))
+# define m3ApiMemStore(offset, src, size)   memStore(m3ApiMemory(), (src), (uint32_t)(offset), (uint32_t)(size))
 
 #if defined(__cplusplus)
 }
