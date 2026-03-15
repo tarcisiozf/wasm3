@@ -806,8 +806,6 @@ m3_wasi_context_t* m3_GetWasiContext()
 
 M3Result  m3_LinkWASI  (IM3Module module)
 {
-    printf("using api wasi\n");fflush(stdout);
-
     M3Result result = m3Err_none;
 
 #ifdef _WIN32
