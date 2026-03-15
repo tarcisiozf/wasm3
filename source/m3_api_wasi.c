@@ -781,9 +781,7 @@ m3ApiRawFunction(m3_wasi_generic_proc_exit)
         context->exit_code = code;
     }
 
-    if (code != 0) {
-        printf("WASI EXIT CODE: %d\n", code);fflush(stdout);
-    }
+    printf("WASI EXIT CODE: %d\n", code);fflush(stdout);
 
     m3ApiTrap(m3Err_trapExit);
 }

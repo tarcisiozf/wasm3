@@ -1,7 +1,10 @@
-build-lib:
+clean-cache:
+	rm -rf build/CMakeCache.txt build/CMakeFiles
+
+build-lib: clean-cache
 	cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_WASI=simple && make -j$(nproc)
 
-build-lib-debug:
+build-lib-debug: clean-cache
 	cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_WASI=simple && make -j$(nproc)
 
 build-app: build-lib
