@@ -19,6 +19,7 @@
 #include "m3_api_wasi.h"
 #include "wasm3.h"
 #include "m3_env.h"
+#include "m3_memory.h"
 
 #define STACK_SIZE_BYTES  (64 * 1024)   /* 64 KB interpreter stack */
 
@@ -46,15 +47,15 @@ const void* http_req(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
 
     uint64_t ok = 0;
 
-    //printf("SDK http_req called with URL: %s\n", url);
     size_t buf_size = 256;
     char buf[buf_size];
     if (http_get(url, buf, buf_size) != 0) {
+        printf("HTTP GET request failed\n");
         goto end;
     }
     size_t response_len = strnlen(buf, buf_size);
 
-    //printf("HTTP GET response (%lu): %s\n", response_len, buf);
+    printf("HTTP GET response (%lu): %s\n", response_len, buf);
 
     IM3Function reserve;
     if (m3_FindFunction(&reserve, rt, "reserve")) {
@@ -95,6 +96,7 @@ const void* set_value(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
     printf("set_value called\n");
     int32_t* value_ptr = (int32_t*)rt->userdata;
     if (value_ptr) {
+        printf("Setting value at %p to %d\n", (void*)value_ptr, (int32_t)sp[0]);
         *value_ptr = (int32_t)sp[0];
     }
     return m3Err_none;
@@ -108,7 +110,44 @@ const void* wasi_sched_yield_stub(IM3Runtime rt, IM3ImportContext ctx, uint64_t*
 
 const void* wasi_poll_oneoff_stub(IM3Runtime rt, IM3ImportContext ctx, uint64_t* sp) {
     printf("WASI poll_oneoff called\n");fflush(stdout);
-    sp[0] = 0;
+
+    // poll_oneoff(in: i32, out: i32, nsubscriptions: i32, nevents_ptr: i32) -> errno
+    // sp[0] = return (errno)
+    // sp[1] = in_offset
+    // sp[2] = out_offset
+    // sp[3] = nsubscriptions
+    // sp[4] = nevents_offset
+    uint32_t in_offset      = (uint32_t)sp[1];
+    uint32_t out_offset     = (uint32_t)sp[2];
+    uint32_t nsubscriptions = (uint32_t)sp[3];
+    uint32_t nevents_offset = (uint32_t)sp[4];
+
+    // For each subscription, read userdata+type and write a corresponding event
+    // subscription: 48 bytes (userdata@0 = u64, type@8 = u8, ...)
+    // event:        32 bytes (userdata@0 = u64, error@8 = u16, type@10 = u8, ...)
+    for (uint32_t i = 0; i < nsubscriptions; i++) {
+        uint32_t sub_base = in_offset + i * 48;
+        uint32_t evt_base = out_offset + i * 32;
+
+        // Read subscription userdata (8 bytes) and type (1 byte at offset 8)
+        uint8_t sub_data[48];
+        memLoad(&rt->memory, sub_data, sub_base, 48);
+        uint64_t userdata = *(uint64_t*)&sub_data[0];
+        uint8_t  type     = sub_data[8];
+
+        // Write event: zero it first, then fill fields
+        uint8_t evt[32];
+        memset(evt, 0, 32);
+        *(uint64_t*)&evt[0]  = userdata;  // userdata @ 0
+        *(uint16_t*)&evt[8]  = 0;         // error @ 8 = success
+        evt[10]              = type;       // type @ 10
+        memStore(&rt->memory, evt, evt_base, 32);
+    }
+
+    // Write nevents = nsubscriptions
+    memStore(&rt->memory, &nsubscriptions, nevents_offset, sizeof(uint32_t));
+
+    sp[0] = 0; // __WASI_ERRNO_SUCCESS
     return m3Err_none;
 }
 
@@ -194,6 +233,8 @@ int main(int argc, char *argv[]) {
 
     print_unresolved_imports(runtime);
 
+    runtime->userdata = malloc(sizeof(int32_t));
+
     /* ── Set up WASI context (argc/argv) ────────────────────────────────── */
     m3_wasi_context_t* wasi_ctx = m3_GetWasiContext();
     if (wasi_ctx) {
@@ -223,6 +264,7 @@ int main(int argc, char *argv[]) {
             if (exit_code != 0) {
                 fprintf(stderr, "[wasm3] program exited with code %d\n", exit_code);
             }
+            printf("FINAL: %d\n", runtime->userdata ? *(int32_t*)runtime->userdata : -1);
             m3_FreeRuntime(runtime);
             m3_FreeEnvironment(env);
             free(wasm);
@@ -261,6 +303,8 @@ int main(int argc, char *argv[]) {
         free(ret_vals);
         free(ret_ptrs);
     }
+
+    printf("FINAL: %d\n", runtime->userdata ? *(int32_t*)runtime->userdata : -1);
 
     /* ── 7. Clean up ─────────────────────────────────────────────────────── */
     m3_FreeRuntime(runtime);
