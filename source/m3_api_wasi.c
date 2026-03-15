@@ -214,7 +214,6 @@ const void* copy_iov_to_host(IM3Runtime runtime, struct iovec* host_iov, uint32_
 
 m3ApiRawFunction(m3_wasi_generic_args_get)
 {
-    printf("@ m3_wasi_generic_args_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint32_t             , argv_offset)
     m3ApiGetArgMem   (uint32_t             , argv_buf_offset)
@@ -245,7 +244,6 @@ m3ApiRawFunction(m3_wasi_generic_args_get)
 
 m3ApiRawFunction(m3_wasi_generic_args_sizes_get)
 {
-    printf("@ m3_wasi_generic_args_sizes_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint32_t             , argc_offset)
     m3ApiGetArgMem   (uint32_t             , argv_buf_size_offset)
@@ -271,7 +269,6 @@ m3ApiRawFunction(m3_wasi_generic_args_sizes_get)
 
 m3ApiRawFunction(m3_wasi_generic_environ_get)
 {
-    printf("@ m3_wasi_generic_environ_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint32_t             , env_offset)
     m3ApiGetArgMem   (uint32_t             , env_buf_offset)
@@ -282,7 +279,6 @@ m3ApiRawFunction(m3_wasi_generic_environ_get)
 
 m3ApiRawFunction(m3_wasi_generic_environ_sizes_get)
 {
-    printf("@ m3_wasi_generic_environ_sizes_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint32_t             , env_count_offset)
     m3ApiGetArgMem   (uint32_t             , env_buf_size_offset)
@@ -299,7 +295,6 @@ m3ApiRawFunction(m3_wasi_generic_environ_sizes_get)
 
 m3ApiRawFunction(m3_wasi_generic_fd_prestat_dir_name)
 {
-    printf("@ m3_wasi_generic_fd_prestat_dir_name\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArgMem   (uint32_t             , path_offset)
@@ -316,7 +311,6 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_dir_name)
 
 m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
 {
-    printf("@ m3_wasi_generic_fd_prestat_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArgMem   (uint32_t             , buf_offset)
@@ -332,7 +326,6 @@ m3ApiRawFunction(m3_wasi_generic_fd_prestat_get)
 
 m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 {
-    printf("@ m3_wasi_generic_fd_fdstat_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArgMem   (uint32_t             , fdstat_offset)
@@ -396,7 +389,6 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_get)
 
 m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_flags)
 {
-    printf("@ m3_wasi_generic_fd_fdstat_set_flags\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArg      (__wasi_fdflags_t     , flags)
@@ -408,7 +400,6 @@ m3ApiRawFunction(m3_wasi_generic_fd_fdstat_set_flags)
 
 m3ApiRawFunction(m3_wasi_unstable_fd_seek)
 {
-    printf("@ m3_wasi_unstable_fd_seek\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArg      (__wasi_filedelta_t   , offset)
@@ -439,7 +430,6 @@ m3ApiRawFunction(m3_wasi_unstable_fd_seek)
 
 m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
 {
-    printf("@ m3_wasi_snapshot_preview1_fd_seek\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArg      (__wasi_filedelta_t   , offset)
@@ -471,7 +461,6 @@ m3ApiRawFunction(m3_wasi_snapshot_preview1_fd_seek)
 
 m3ApiRawFunction(m3_wasi_generic_path_open)
 {
-    printf("@ m3_wasi_generic_path_open\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , dirfd)
     m3ApiGetArg      (__wasi_lookupflags_t , dirflags)
@@ -593,7 +582,6 @@ m3ApiRawFunction(m3_wasi_generic_path_open)
 
 m3ApiRawFunction(m3_wasi_generic_fd_read)
 {
-    printf("@ m3_wasi_generic_fd_read\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArgMem   (uint32_t             , wasi_iovs_offset)
@@ -624,7 +612,6 @@ m3ApiRawFunction(m3_wasi_generic_fd_read)
 
 m3ApiRawFunction(m3_wasi_generic_fd_write)
 {
-    printf("@ m3_wasi_generic_fd_write\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t          , fd)
     m3ApiGetArgMem   (uint32_t             , wasi_iovs_offset)
@@ -657,7 +644,6 @@ m3ApiRawFunction(m3_wasi_generic_fd_write)
 
 m3ApiRawFunction(m3_wasi_generic_fd_close)
 {
-    printf("@ m3_wasi_generic_fd_close\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t, fd)
 
@@ -667,7 +653,6 @@ m3ApiRawFunction(m3_wasi_generic_fd_close)
 
 m3ApiRawFunction(m3_wasi_generic_fd_datasync)
 {
-    printf("@ m3_wasi_generic_fd_datasync\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_fd_t, fd)
 
@@ -685,7 +670,6 @@ m3ApiRawFunction(m3_wasi_generic_fd_datasync)
 
 m3ApiRawFunction(m3_wasi_generic_random_get)
 {
-    printf("@ m3_wasi_generic_random_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArgMem   (uint32_t             , buf_offset)
     m3ApiGetArg      (__wasi_size_t        , buf_len)
@@ -735,7 +719,6 @@ m3ApiRawFunction(m3_wasi_generic_random_get)
 
 m3ApiRawFunction(m3_wasi_generic_clock_res_get)
 {
-    printf("@ m3_wasi_generic_clock_res_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_clockid_t     , wasi_clk_id)
     m3ApiGetArgMem   (uint32_t             , resolution_offset)
@@ -757,7 +740,6 @@ m3ApiRawFunction(m3_wasi_generic_clock_res_get)
 
 m3ApiRawFunction(m3_wasi_generic_clock_time_get)
 {
-    printf("@ m3_wasi_generic_clock_time_get\n");fflush(stdout);
     m3ApiReturnType  (uint32_t)
     m3ApiGetArg      (__wasi_clockid_t     , wasi_clk_id)
     m3ApiGetArg      (__wasi_timestamp_t   , precision)
@@ -791,7 +773,6 @@ void trace(const int size) {
 
 m3ApiRawFunction(m3_wasi_generic_proc_exit)
 {
-    printf("@ m3_wasi_generic_proc_exit\n");fflush(stdout);
     m3ApiGetArg      (uint32_t, code)
 
     m3_wasi_context_t* context = (m3_wasi_context_t*)(_ctx->userdata);
