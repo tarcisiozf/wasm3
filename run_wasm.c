@@ -23,6 +23,15 @@
 
 #define STACK_SIZE_BYTES  (64 * 1024)   /* 64 KB interpreter stack */
 
+#ifdef DEBUG
+    #define DEBUG_PRINT(...) do { \
+        printf(__VA_ARGS__); \
+        fflush(stdout); \
+    } while(0)
+#else
+    #define DEBUG_PRINT(...) do {} while(0)
+#endif
+
 int http_get(const char* url, char* buffer, const size_t buf_size);
 
 /* Print a human-readable error and exit. */
