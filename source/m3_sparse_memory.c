@@ -6,7 +6,7 @@
 #define MEM_PAGE_SIZE 65536
 
 #ifndef SPARSE_PAGE_SIZE
-#define SPARSE_PAGE_SIZE 256
+#define SPARSE_PAGE_SIZE 4096
 #endif
 
 #ifndef SPARSE_MERGE_THRESHOLD
@@ -84,24 +84,34 @@ static void memLoadFromPage(const M3Memory* mem, const u32 pageIdx, const u32 pa
     memcpy(data, (void*)(mem->pages[pageIdx] + pageOff), size);
 }
 
-static size_t calculateOverheadCost(const u32 numPages) {
-    return sizeof(bytes_t) * numPages; // page pointer array
-}
-
-static f32 calculateOverhead(const u32 numPages, const u32 numPagesWithData, const u32 pageSize) {
-    const size_t cost = calculateOverheadCost(numPages);
-    const size_t size = (size_t)pageSize * numPagesWithData;
-    return (f32)cost / size;
-}
 
 static bool memShouldMergePages(const M3Memory* mem) {
-    const f32 currentOverhead = calculateOverhead(mem->numSparsePages, mem->pagesWithData, mem->pageSize);
-    if (currentOverhead < mem->mergeThreshold) {
+    if (mem->pagesWithData == 0 || mem->numSparsePages <= 1) {
         return false;
     }
 
-    const f32 previewOverhead = calculateOverhead(mem->numSparsePages, mem->pagesWithData - 1, mem->pageSize);
-    return previewOverhead < currentOverhead;
+    // Calculate current total memory cost
+    const size_t currentPointerCost = sizeof(bytes_t) * mem->numSparsePages;
+    const size_t currentDataCost = (size_t)mem->pageSize * mem->pagesWithData;
+    const size_t currentTotal = currentPointerCost + currentDataCost;
+
+    // Simulate merge: count how many merged pages would contain data
+    u32 mergedPagesWithData = 0;
+    for (u32 i = 0; i < mem->numSparsePages; i += 2) {
+        bool has1 = memHasPage(mem, i);
+        bool has2 = (i + 1 < mem->numSparsePages) && memHasPage(mem, i + 1);
+        if (has1 || has2) {
+            mergedPagesWithData++;
+        }
+    }
+
+    const u32 mergedNumPages = (mem->numSparsePages + 1) / 2;
+    const u32 mergedPageSize = mem->pageSize * 2;
+    const size_t mergedPointerCost = sizeof(bytes_t) * mergedNumPages;
+    const size_t mergedDataCost = (size_t)mergedPageSize * mergedPagesWithData;
+    const size_t mergedTotal = mergedPointerCost + mergedDataCost;
+
+    return mergedTotal < currentTotal;
 }
 
 M3Result memMergePages(M3Memory* mem) {

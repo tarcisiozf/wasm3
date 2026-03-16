@@ -76,7 +76,7 @@ static void test_init_zeroes(void)
     M3Memory mem;
     memset(&mem, 0xAB, sizeof(mem));
     memInit(&mem);
-    ASSERT_EQ(mem.pageSize,       256u);
+    ASSERT_EQ(mem.pageSize,       4096u);
     ASSERT_EQ(mem.pagesWithData,  0u);
     ASSERT_EQ(mem.numSparsePages, 0u);
     ASSERT_NULL(mem.pages);
@@ -90,9 +90,9 @@ static void test_store_load_single_byte(void)
     M3Memory mem;
     mem_setup(&mem, 1);
     u8 val = 0x42;
-    ASSERT_EQ(memStore(&mem, 0, &val, 1), m3Err_none);
+    ASSERT_EQ(memStore(&mem, &val, 0, 1), m3Err_none);
     u8 out = 0;
-    ASSERT_EQ(memLoad(&mem, 0, 1, &out), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, &out, 0, 1), m3Err_none);
     ASSERT_EQ(out, 0x42u);
     memFree(&mem);
     TEST_END(store_load_single_byte);
@@ -105,10 +105,10 @@ static void test_store_load_cross_page(void)
     mem_setup(&mem, 1);
     u8 data[512];
     for (int i = 0; i < 512; i++) data[i] = (u8)(i & 0xFF);
-    ASSERT_EQ(memStore(&mem, 128, data, 512), m3Err_none);
+    ASSERT_EQ(memStore(&mem, data, 128, 512), m3Err_none);
     u8 out[512];
     memset(out, 0, 512);
-    ASSERT_EQ(memLoad(&mem, 128, 512, out), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, out, 128, 512), m3Err_none);
     ASSERT_EQ(memcmp(data, out, 512), 0);
     memFree(&mem);
     TEST_END(store_load_cross_page);
@@ -121,7 +121,7 @@ static void test_load_unwritten_is_zero(void)
     mem_setup(&mem, 1);
     u8 out[64];
     memset(out, 0xAB, 64);
-    ASSERT_EQ(memLoad(&mem, 1000, 64, out), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, out, 1000, 64), m3Err_none);
     for (int i = 0; i < 64; i++) ASSERT_EQ(out[i], 0u);
     memFree(&mem);
     TEST_END(load_unwritten_is_zero);
@@ -133,7 +133,7 @@ static void test_store_zero_no_alloc(void)
     M3Memory mem;
     mem_setup(&mem, 1);
     u8 zeros[64] = {0};
-    ASSERT_EQ(memStore(&mem, 0, zeros, 64), m3Err_none);
+    ASSERT_EQ(memStore(&mem, zeros, 0, 64), m3Err_none);
     ASSERT_EQ(mem.pagesWithData, 0u);
     memFree(&mem);
     TEST_END(store_zero_no_alloc);
@@ -146,10 +146,10 @@ static void test_store_zero_frees_page(void)
     mem_setup(&mem, 1);
     u8 data[64];
     memset(data, 0x55, 64);
-    ASSERT_EQ(memStore(&mem, 0, data, 64), m3Err_none);
+    ASSERT_EQ(memStore(&mem, data, 0, 64), m3Err_none);
     ASSERT(mem.pagesWithData > 0u);
     u8 zeros[64] = {0};
-    ASSERT_EQ(memStore(&mem, 0, zeros, 64), m3Err_none);
+    ASSERT_EQ(memStore(&mem, zeros, 0, 64), m3Err_none);
     ASSERT_EQ(mem.pagesWithData, 0u);
     memFree(&mem);
     TEST_END(store_zero_frees_page);
@@ -161,8 +161,8 @@ static void test_store_out_of_bounds(void)
     M3Memory mem;
     mem_setup(&mem, 1);
     u8 val = 1;
-    ASSERT_EQ(memStore(&mem, WASM_PAGE,     &val, 1), m3Err_wasmMemoryOverflow);
-    ASSERT_EQ(memStore(&mem, WASM_PAGE - 1, &val, 1), m3Err_none);
+    ASSERT_EQ(memStore(&mem, &val, WASM_PAGE,     1), m3Err_wasmMemoryOverflow);
+    ASSERT_EQ(memStore(&mem, &val, WASM_PAGE - 1, 1), m3Err_none);
     memFree(&mem);
     TEST_END(store_out_of_bounds);
 }
@@ -173,7 +173,7 @@ static void test_load_out_of_bounds(void)
     M3Memory mem;
     mem_setup(&mem, 1);
     u8 out[2];
-    ASSERT_EQ(memLoad(&mem, WASM_PAGE - 1, 2, out), m3Err_wasmMemoryOverflow);
+    ASSERT_EQ(memLoad(&mem, out, WASM_PAGE - 1, 2), m3Err_wasmMemoryOverflow);
     TEST_END(load_out_of_bounds);
 }
 
@@ -183,8 +183,8 @@ static void test_zero_size_ops(void)
     M3Memory mem;
     mem_setup(&mem, 1);
     u8 val = 0xFF;
-    ASSERT_EQ(memStore(&mem, 0, &val, 0), m3Err_none);
-    ASSERT_EQ(memLoad (&mem, 0, 0, &val), m3Err_none);
+    ASSERT_EQ(memStore(&mem, &val, 0, 0), m3Err_none);
+    ASSERT_EQ(memLoad (&mem, &val, 0, 0), m3Err_none);
     ASSERT_EQ(mem.pagesWithData, 0u);
     memFree(&mem);
     TEST_END(zero_size_ops);
@@ -196,13 +196,13 @@ static void test_multiple_writes(void)
     M3Memory mem;
     mem_setup(&mem, 1);
     u32 a = 0xDEADBEEFu, b = 0xCAFEBABEu, c = 0x12345678u;
-    ASSERT_EQ(memStore(&mem, 0,     &a, 4), m3Err_none);
-    ASSERT_EQ(memStore(&mem, 1000,  &b, 4), m3Err_none);
-    ASSERT_EQ(memStore(&mem, 60000, &c, 4), m3Err_none);
+    ASSERT_EQ(memStore(&mem, &a, 0,     4), m3Err_none);
+    ASSERT_EQ(memStore(&mem, &b, 1000,  4), m3Err_none);
+    ASSERT_EQ(memStore(&mem, &c, 60000, 4), m3Err_none);
     u32 ra = 0, rb = 0, rc = 0;
-    ASSERT_EQ(memLoad(&mem, 0,     4, &ra), m3Err_none);
-    ASSERT_EQ(memLoad(&mem, 1000,  4, &rb), m3Err_none);
-    ASSERT_EQ(memLoad(&mem, 60000, 4, &rc), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, &ra, 0,     4), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, &rb, 1000,  4), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, &rc, 60000, 4), m3Err_none);
     ASSERT_EQ(ra, a);  ASSERT_EQ(rb, b);  ASSERT_EQ(rc, c);
     memFree(&mem);
     TEST_END(multiple_writes);
@@ -214,11 +214,11 @@ static void test_partial_overwrite(void)
     M3Memory mem;
     mem_setup(&mem, 1);
     u8 init[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-    ASSERT_EQ(memStore(&mem, 0, init, 8), m3Err_none);
+    ASSERT_EQ(memStore(&mem, init, 0, 8), m3Err_none);
     u8 patch[2] = {0xAA, 0xBB};
-    ASSERT_EQ(memStore(&mem, 3, patch, 2), m3Err_none);
+    ASSERT_EQ(memStore(&mem, patch, 3, 2), m3Err_none);
     u8 out[8] = {0};
-    ASSERT_EQ(memLoad(&mem, 0, 8, out), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, out, 0, 8), m3Err_none);
     ASSERT_EQ(out[0], 1u);    ASSERT_EQ(out[1], 2u);    ASSERT_EQ(out[2], 3u);
     ASSERT_EQ(out[3], 0xAAu); ASSERT_EQ(out[4], 0xBBu);
     ASSERT_EQ(out[5], 6u);    ASSERT_EQ(out[6], 7u);    ASSERT_EQ(out[7], 8u);
@@ -253,9 +253,9 @@ static void test_large_write(void)
     u8 *src = (u8 *)malloc(LEN);
     u8 *dst = (u8 *)malloc(LEN);
     for (u32 i = 0; i < LEN; i++) src[i] = (u8)(i * 3 + 7);
-    ASSERT_EQ(memStore(&mem, 0, src, LEN), m3Err_none);
+    ASSERT_EQ(memStore(&mem, src, 0, LEN), m3Err_none);
     memset(dst, 0, LEN);
-    ASSERT_EQ(memLoad(&mem, 0, LEN, dst), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, dst, 0, LEN), m3Err_none);
     ASSERT_EQ(memcmp(src, dst, LEN), 0);
     free(src); free(dst);
     memFree(&mem);
@@ -269,9 +269,9 @@ static void test_repeated_store(void)
     mem_setup(&mem, 1);
     for (u32 i = 0; i < 100; i++) {
         u32 val = i * 7;
-        ASSERT_EQ(memStore(&mem, 256, &val, 4), m3Err_none);
+        ASSERT_EQ(memStore(&mem, &val, 256, 4), m3Err_none);
         u32 out = 0;
-        ASSERT_EQ(memLoad(&mem, 256, 4, &out), m3Err_none);
+        ASSERT_EQ(memLoad(&mem, &out, 256, 4), m3Err_none);
         ASSERT_EQ(out, val);
     }
     memFree(&mem);
@@ -285,11 +285,11 @@ static void test_page_boundary_writes(void)
     mem_setup(&mem, 1);
     for (u32 off = 0; off < WASM_PAGE; off += 256) {
         u8 v = (u8)(off / 256 + 1);
-        ASSERT_EQ(memStore(&mem, off, &v, 1), m3Err_none);
+        ASSERT_EQ(memStore(&mem, &v, off, 1), m3Err_none);
     }
     for (u32 off = 0; off < WASM_PAGE; off += 256) {
         u8 out = 0;
-        ASSERT_EQ(memLoad(&mem, off, 1, &out), m3Err_none);
+        ASSERT_EQ(memLoad(&mem, &out, off, 1), m3Err_none);
         ASSERT_EQ(out, (u8)(off / 256 + 1));
     }
     memFree(&mem);
@@ -306,7 +306,7 @@ static void test_merge_pages_preserves_data(void)
 
     u8 src[512];
     for (int i = 0; i < 512; i++) src[i] = (u8)(i + 1); /* 1..256, never zero */
-    ASSERT_EQ(memStore(&mem, 0, src, 512), m3Err_none);
+    ASSERT_EQ(memStore(&mem, src, 0, 512), m3Err_none);
 
     u32 page_size_before = mem.pageSize;
     ASSERT_EQ(memMergePages(&mem), m3Err_none);
@@ -314,7 +314,7 @@ static void test_merge_pages_preserves_data(void)
 
     u8 out[512];
     memset(out, 0, 512);
-    ASSERT_EQ(memLoad(&mem, 0, 512, out), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, out, 0, 512), m3Err_none);
     ASSERT_EQ(memcmp(src, out, 512), 0);
 
     memFree(&mem);
@@ -331,10 +331,10 @@ static void test_interleaved_regions(void)
     u8  values[]  = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE};
     const int N = 5;
     for (int i = 0; i < N; i++)
-        ASSERT_EQ(memStore(&mem, offsets[i], &values[i], 1), m3Err_none);
+        ASSERT_EQ(memStore(&mem, &values[i], offsets[i], 1), m3Err_none);
     for (int i = 0; i < N; i++) {
         u8 out = 0;
-        ASSERT_EQ(memLoad(&mem, offsets[i], 1, &out), m3Err_none);
+        ASSERT_EQ(memLoad(&mem, &out, offsets[i], 1), m3Err_none);
         ASSERT_EQ(out, values[i]);
     }
     memFree(&mem);
@@ -348,9 +348,9 @@ static void test_store_last_byte(void)
     M3Memory mem;
     mem_setup(&mem, 1);
     u8 val = 0x99;
-    ASSERT_EQ(memStore(&mem, WASM_PAGE - 1, &val, 1), m3Err_none);
+    ASSERT_EQ(memStore(&mem, &val, WASM_PAGE - 1, 1), m3Err_none);
     u8 out = 0;
-    ASSERT_EQ(memLoad(&mem, WASM_PAGE - 1, 1, &out), m3Err_none);
+    ASSERT_EQ(memLoad(&mem, &out, WASM_PAGE - 1, 1), m3Err_none);
     ASSERT_EQ(out, 0x99u);
     memFree(&mem);
     TEST_END(store_last_byte);
@@ -365,14 +365,14 @@ static void test_pages_with_data_count(void)
     mem.mergeThreshold = 0.0f;   /* disable auto-merge */
 
     u8 val = 1, z = 0;
-    memStore(&mem, 0,   &val, 1);   /* sparse page 0 */
-    memStore(&mem, 256, &val, 1);   /* sparse page 1 */
-    memStore(&mem, 512, &val, 1);   /* sparse page 2 */
-    memStore(&mem, 768, &val, 1);   /* sparse page 3 */
+    memStore(&mem, &val, 0,     1);   /* sparse page 0 */
+    memStore(&mem, &val, 4096,  1);   /* sparse page 1 */
+    memStore(&mem, &val, 8192,  1);   /* sparse page 2 */
+    memStore(&mem, &val, 12288, 1);   /* sparse page 3 */
     ASSERT_EQ(mem.pagesWithData, 4u);
 
-    memStore(&mem, 256, &z, 1);
-    memStore(&mem, 768, &z, 1);
+    memStore(&mem, &z, 4096,  1);
+    memStore(&mem, &z, 12288, 1);
     ASSERT_EQ(mem.pagesWithData, 2u);
 
     memFree(&mem);
