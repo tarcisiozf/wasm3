@@ -28,7 +28,7 @@ typedef M3Memory* IM3Memory;
 
 void memInit(M3Memory* mem);
 
-void memMergePages(M3Memory* mem);
+M3Result memMergePages(M3Memory* mem);
 
 M3Result memStore(M3Memory* mem, const void* data, u32 offset, u32 size);
 

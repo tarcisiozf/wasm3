@@ -13,10 +13,10 @@
 #define SPARSE_MERGE_THRESHOLD 0.1f
 #endif
 
-void memEnsurePages(M3Memory* mem, const u32 offset, const u32 size) {
+M3Result memEnsurePages(M3Memory* mem, const u32 offset, const u32 size) {
     const u32 requiredSize = (offset + size + mem->pageSize - 1) / mem->pageSize;
     if (requiredSize <= mem->numSparsePages) {
-        return;
+        return m3Err_none;
     }
 
     bytes_t* pages = m3_Realloc(
@@ -25,11 +25,15 @@ void memEnsurePages(M3Memory* mem, const u32 offset, const u32 size) {
         sizeof(bytes_t) * requiredSize,
         sizeof(bytes_t) * mem->numSparsePages
     );
+    if (pages == NULL) {
+        return m3Err_mallocFailed;
+    }
     for (u32 i = mem->numSparsePages; i < requiredSize; i++) {
         pages[i] = NULL;
     }
     mem->pages = pages;
     mem->numSparsePages = requiredSize;
+    return m3Err_none;
 }
 
 static bool bytesIsEmpty(const u8* bytes, const u32 size) {
@@ -60,12 +64,17 @@ static void memDeletePageIfEmpty(M3Memory* mem, const u32 index) {
     }
 }
 
-static void memWriteToPage(M3Memory* mem, const u32 pageIdx, const u32 pageOff, const void* data, const u32 size) {
+static M3Result memWriteToPage(M3Memory* mem, const u32 pageIdx, const u32 pageOff, const void* data, const u32 size) {
     if (!memHasPage(mem, pageIdx)) {
         mem->pages[pageIdx] = m3_Malloc("memory page", mem->pageSize);
+        if (mem->pages[pageIdx] == NULL) {
+            return m3Err_mallocFailed;
+        }
+        memset((void*)mem->pages[pageIdx], 0, mem->pageSize);
         mem->pagesWithData++;
     }
     memcpy((void*)(mem->pages[pageIdx] + pageOff), data, size);
+    return m3Err_none;
 }
 
 static void memLoadFromPage(const M3Memory* mem, const u32 pageIdx, const u32 pageOff, void* data, const u32 size) {
@@ -95,10 +104,14 @@ static bool memShouldMergePages(const M3Memory* mem) {
     return previewOverhead < currentOverhead;
 }
 
-void memMergePages(M3Memory* mem) {
+M3Result memMergePages(M3Memory* mem) {
     const u32 newPageSize = mem->pageSize * 2;
     const u32 numNewPages = (mem->numSparsePages + 1) / 2;
     bytes_t* newPages = m3_Malloc("merged memory pages", sizeof(bytes_t) * numNewPages);
+
+    if (newPages == NULL) {
+        return m3Err_mallocFailed;
+    }
 
     memset(newPages, 0, sizeof(bytes_t) * numNewPages);
 
@@ -110,6 +123,16 @@ void memMergePages(M3Memory* mem) {
             continue;
         }
         u8* mergedPage = m3_Malloc("merged memory page", newPageSize);
+        if (mergedPage == NULL) {
+            // Clean up already-allocated merged pages
+            for (u32 j = 0; j < numNewPages; j++) {
+                if (newPages[j] != NULL) {
+                    m3_Free(newPages[j]);
+                }
+            }
+            m3_Free(newPages);
+            return m3Err_mallocFailed;
+        }
         if (page1 != NULL) {
             memcpy(mergedPage, page1, mem->pageSize);
         } else {
@@ -145,6 +168,8 @@ void memMergePages(M3Memory* mem) {
     for (u32 i = 0; i < numNewPages; i++) {
         memDeletePageIfEmpty(mem, i);
     }
+
+    return m3Err_none;
 }
 
 static bool memCanFit(const M3Memory* mem, const u32 offset, const u32 size) {
@@ -175,7 +200,8 @@ M3Result memStore(M3Memory* mem, const void* data, const u32 offset, const u32 s
         return m3Err_wasmMemoryOverflow;
     }
 
-    memEnsurePages(mem, offset, size);
+    M3Result result = memEnsurePages(mem, offset, size);
+    if (result) return result;
 
     const bool isEmpty = bytesIsEmpty(data, size);
 
@@ -186,7 +212,8 @@ M3Result memStore(M3Memory* mem, const void* data, const u32 offset, const u32 s
         const u32 n = min(size-written, mem->pageSize-pageOff);
 
         if (!isEmpty || memHasPage(mem, pageIdx)) {
-            memWriteToPage(mem, pageIdx, pageOff, (const uint8_t*)data + written, n);
+            result = memWriteToPage(mem, pageIdx, pageOff, (const uint8_t*)data + written, n);
+            if (result) return result;
             if (isEmpty) {
                 // current write is empty but page had data, check if we can delete it
                 memDeletePageIfEmpty(mem, pageIdx);
@@ -199,6 +226,7 @@ M3Result memStore(M3Memory* mem, const void* data, const u32 offset, const u32 s
     }
 
     if (mem->mergeThreshold > 0 && memShouldMergePages(mem)) {
+        // Merge failure is non-fatal — memory still works, just less compact
         memMergePages(mem);
     }
 

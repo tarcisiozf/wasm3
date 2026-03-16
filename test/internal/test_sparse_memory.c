@@ -309,7 +309,7 @@ static void test_merge_pages_preserves_data(void)
     ASSERT_EQ(memStore(&mem, 0, src, 512), m3Err_none);
 
     u32 page_size_before = mem.pageSize;
-    memMergePages(&mem);
+    ASSERT_EQ(memMergePages(&mem), m3Err_none);
     ASSERT_EQ(mem.pageSize, page_size_before * 2);
 
     u8 out[512];
